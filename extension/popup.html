@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>Quick Form Fill · 快速填表</title><link rel="stylesheet" href="popup.css"></head>
+<body><h1>Quick Form Fill</h1><p>通用在线填表 · 保存资料 → 扫描 → 核对后填入</p>
+<details id="profilePanel"><summary>我的填表资料</summary><form id="profile"></form>
+<div id="customFields"></div><button id="addCustom">添加自定义资料</button><br>
+<button id="save">保存资料</button><button id="clear">删除全部资料</button><small>资料仅存于本浏览器，未加密、不云同步。请勿存密码或证件号码。</small></details>
+<details id="apiPanel"><summary>GPT 设置 <span id="keyStatus">未配置</span></summary>
+<p>模型：<strong id="model"></strong>。插件免费，API 用量由你的 OpenAI 账户支付。</p>
+<label>OpenAI API key<input id="apiKey" type="password" placeholder="sk-…" autocomplete="off" spellcheck="false"></label>
+<label><input id="rememberKey" type="checkbox"> 在此浏览器长期保存 key（未加密）</label>
+<small>默认只保留到浏览器会话结束。Key 不会发送到被填写的网站。</small>
+<button id="saveKey">保存 key</button><button id="deleteKey">删除 key</button>
+<a href="https://platform.openai.com/api-keys" target="_blank" rel="noreferrer">获取 OpenAI API key</a></details>
+<div class="actions"><button id="scan">扫描当前页面</button><button id="ai" disabled>GPT 补充匹配</button></div>
+<small>点击 GPT 时会把字段描述和资料名称发往 OpenAI，不发送保存的资料值、整页内容或页面网址。字段描述可能包含网站显示的信息。规则和手动匹配免费。</small>
+<p id="status" role="status" aria-live="polite">先填写并保存资料。</p><small id="usage"></small>
+<div id="preview"></div><button id="fill" disabled>填入勾选项</button>
+<p>不会覆盖已有内容、勾选条款或自动提交。密码与验证码请自行填写。</p>
+<script type="module" src="popup.mjs"></script></body></html>

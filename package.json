@@ -1,0 +1,16 @@
+{
+  "name": "quick-form-fill",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "description": "Standalone browser form autofill with user-provided OpenAI API keys",
+  "license": "MIT",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "test:browser": "node --test tests/browser.mjs tests/extension-browser.mjs",
+    "check": "node scripts/check.mjs",
+    "build": "node scripts/build.mjs"
+  },
+  "devDependencies": { "playwright": "1.61.1" },
+  "engines": { "node": ">=22.13" }
+}

@@ -1,0 +1,56 @@
+# Quick Form Fill · 快速填表
+
+独立的 Chrome / Edge 浏览器扩展，用于注册、活动报名、联系资料等普通在线表单。无需运行 Web 应用或本地模型。保存资料 → 扫描当前页面 → 规则匹配 / GPT 语义匹配 → 核对后填入。
+
+支持姓名、联系方式、地址等常见资料，以及最多 20 项自定义资料（如学校、部门）。模型只选择字段对应哪一项已保存资料，不生成资料值。
+
+## 安装与使用
+
+1. 打开 `chrome://extensions` 或 `edge://extensions`，启用开发者模式。
+2. 点击“加载已解压的扩展程序”，选择本项目的 [extension](extension) 目录。无需 npm 安装或构建即可使用。
+3. 点击扩展，填写“我的填表资料”并保存。
+4. 在“GPT 设置”粘贴你自己的 [OpenAI API key](https://platform.openai.com/api-keys)，点击“保存 key”。默认仅在本次浏览器会话中保留；可以显式勾选长期保存。
+5. 打开目标网页，点击“扫描当前页面”。常见字段自动匹配；可点击“GPT 补充匹配”分析其余字段，首次需授权访问 OpenAI。
+6. 核对下拉菜单与勾选项，点击“填入勾选项”，返回网页检查并自行提交。
+
+无 API key 也能使用规则匹配和手动选择。关闭弹窗会丢弃扫描结果，下次重新扫描即可。会话 key 会在关闭浏览器、扩展重新加载或更新后清除。更换扩展路径可能改变扩展 ID，因此请保留固定安装目录。
+
+旧原型安装与此扩展使用不同的浏览器存储，不会自动迁移私人资料。可以先抄录需要的资料，再禁用旧扩展。
+
+## 模型与费用
+
+默认使用 **GPT-6 Luna (`gpt-6-luna`)**，通过 OpenAI Responses API 的严格 JSON Schema 输出字段映射，设置 `reasoning.effort: none`。不使用本地模型、代理服务或第三方服务器。
+
+依据 2026-10-08 查阅的 [OpenAI 官方模型说明](https://developers.openai.com/api/docs/models/gpt-6-luna)，标准输入为 **$0.10 / 百万 tokens**，输出为 **$0.50 / 百万 tokens**。例如 1,000 输入 + 500 输出 tokens 约 **$0.00035**，仅为估算，实际费用取决于请求长度和 OpenAI 账单。
+
+插件本身免费，GPT API 按你的账户用量计费。仅点击 GPT 按钮时调用，已匹配字段不重复发送；没有后台请求、自动重试或自动切换模型。每次最多分析 100 个字段，最多 3,000 输出 tokens，并显示实际返回的 token 用量。超时或关闭弹窗不保证已经发出的请求免计费。
+
+## 隐私与限制
+
+- 资料保存在扩展的 `chrome.storage.local`，未加密、不云同步。
+- API key 默认存于 `chrome.storage.session`；勾选长期保存才写入本地存储，同样未加密。可以单独删除 key。存储限制为扩展可信上下文，网页与注入脚本无法读取。
+- 点击 GPT 后，**字段描述、名称、占位提示及你保存的资料名称**会发送给 OpenAI。描述本身可能包含网站显示的私人信息。不会发送保存的资料值、表单当前值、整页 HTML、页面 URL 或文件。
+- Key 仅作为认证头发送到固定的 `https://api.openai.com/v1/responses`，不注入网页、不写日志、不经过项目服务器。请求设置 `store: false`，但这不等于 OpenAI 零数据保留承诺。
+- 只填充当前主文档中可见、空白的原生文本输入框、textarea 和 select；跳过密码、验证码、支付/证件提示字段、复选框和上传控件。不覆盖、不自动提交。
+- 暂不支持 iframe、Shadow DOM、自定义下拉控件；动态页面和下一页需要重新扫描。
+- 下拉框仅使用与你保存内容相同的选项文字或值，不猜测国家代码转换；已有非空默认值会保留。
+- 网站有自己的事件处理器，填写后请核对实际结果。关闭或离开网页后须重新扫描。
+
+## 开发
+
+需要 Node 22.13+。运行时无第三方依赖；Playwright 只用于测试。
+
+```bash
+npm ci
+npm test
+npm run check
+npx playwright install chromium
+npm run test:browser
+npm run build
+```
+
+构建生成可加载的 [dist/quick-form-fill](dist/quick-form-fill) 目录，内含扩展与许可证。自动测试使用合成资料和模拟 OpenAI 响应，不消耗真实 API 额度。
+
+入口：[manifest](extension/manifest.json)、[弹窗](extension/popup.mjs)、[字段识别与填入](extension/page.mjs)、[OpenAI 请求](extension/openai.mjs)、[模型配置](extension/model-config.mjs)。不依赖原宿主项目、工作区环境变量或服务端。
+
+MIT 许可证，来源见 [NOTICE](NOTICE.md)。
