@@ -49,3 +49,25 @@ test('network, timeout, incomplete, refusal and malformed outputs fail safely', 
     await assert.rejects(semanticMatches(fields, profile, key, undefined, fake(body)), error => error.usage.outputTokens === 12);
   }
 });
+
+test('field help requests a bounded explanation with only metadata and profile names', async () => {
+  const { explainField } = await import('../extension/openai.mjs');
+  const available = [{ key: 'email', description: '邮箱' }];
+  const result = await explainField({ label: 'Contact email', value: 'private-page-value', html: '<input>', type: 'email' }, available, key, async (url, options) => {
+    assert.equal(url, API_URL);
+    const body = JSON.parse(options.body);
+    assert.equal(body.max_output_tokens, 900); assert.equal(body.text.format.name, 'field_help');
+    assert.equal(body.store, false); assert(!options.body.includes('private-page-value')); assert(!options.body.includes('<input>'));
+    assert.deepEqual(body.text.format.schema.properties.profileKey.enum, ['', 'email']);
+    return { ok: true, json: async () => response({ output: [{ content: [{ type: 'output_text', text: JSON.stringify({ explanation: '用于联系你的电子邮件地址。', suggestion: '填写常用邮箱，包含 @ 和域名。', profileKey: 'email' }) }] }] }) };
+  });
+  assert.equal(result.profileLabel, '邮箱'); assert.equal(result.usage.outputTokens, 12);
+});
+test('field help works without saved facts but rejects made-up keys and malformed advice', async () => {
+  const { explainField } = await import('../extension/openai.mjs');
+  const make = advice => fake(response({ output: [{ content: [{ type: 'output_text', text: JSON.stringify(advice) }] }] }));
+  const result = await explainField({ label: 'City' }, [], key, make({ explanation: '你所在的城市。', suggestion: '输入城市后选择网站候选项。', profileKey: '' }));
+  assert.equal(result.profileLabel, '');
+  for (const advice of [{ explanation: 'Explain', suggestion: 'Suggest', profileKey: 'invented' }, { explanation: '', suggestion: 'Suggest', profileKey: '' }]) await assert.rejects(explainField({ label: 'City' }, [], key, make(advice)), /无效建议/);
+  await assert.rejects(explainField({}, [], '', () => { throw Error('Unexpected network'); }), /API key/);
+});

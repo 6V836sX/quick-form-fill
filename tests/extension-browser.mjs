@@ -65,6 +65,38 @@ test('unpacked extension: key lifecycle, custom facts, mocked GPT mapping and re
       const target = (await original({})).find(tab => tab.url === url);
       chrome.tabs.query = async query => query.active ? [target] : original(query);
     }, fixtureURL);
+    // Mock GPT in the real service worker; no real credentials or paid calls.
+    const worker = context.serviceWorkers()[0] || await context.waitForEvent('serviceworker');
+    await worker.evaluate(() => {
+      globalThis.helpRequests = [];
+      globalThis.fetch = async (url, options) => {
+        globalThis.helpRequests.push({ url, body: JSON.parse(options.body) });
+        return { ok: true, json: async () => ({ status: 'completed', usage: { input_tokens: 80, output_tokens: 30 }, output: [{ content: [{ type: 'output_text', text: JSON.stringify({ explanation: '用于接收联系邮件。', suggestion: '填写包含 @ 的常用邮箱地址。', profileKey: 'email' }) }] }] }) };
+      };
+    });
+    await popup.locator('#hover').click();
+    await popup.getByText('悬停帮助已启用。关闭弹窗，将鼠标移到空白字段，再点击“解释与填写建议”。').waitFor();
+    await target.locator('[name=email]').hover();
+    const helper = target.locator('[data-quick-form-fill-help]');
+    await helper.locator('#explain').waitFor({ state: 'visible' });
+    assert.equal(await worker.evaluate(() => globalThis.helpRequests.length), 0);
+    // A website's synthetic click cannot spend API quota.
+    await helper.locator('#explain').evaluate(button => button.click());
+    assert.equal(await worker.evaluate(() => globalThis.helpRequests.length), 0);
+    await helper.locator('#explain').click();
+    await helper.getByText('用于接收联系邮件。', { exact: true }).waitFor();
+    await helper.getByText('填写建议：填写包含 @ 的常用邮箱地址。', { exact: true }).waitFor();
+    assert.equal(await target.locator('[name=email]').inputValue(), '');
+    const requests = await worker.evaluate(() => globalThis.helpRequests);
+    assert.equal(requests.length, 1);
+    for (const secret of ['synthetic@example.test', 'Synthetic Person', 'Synthetic School', 'sk-synthetic-browser-key']) assert(!JSON.stringify(requests).includes(secret));
+    await helper.locator('#explain').click();
+    await helper.getByText('使用缓存，本次未调用 API。').waitFor();
+    assert.equal(await worker.evaluate(() => globalThis.helpRequests.length), 1);
+    await target.keyboard.press('Escape');
+    await helper.waitFor({ state: 'hidden' });
+    await popup.locator('#stopHover').click();
+    await helper.waitFor({ state: 'detached' });
     await popup.locator('#scan').click();
     await popup.getByText('找到 3 个空白字段，匹配 2 项。请核对下方预览。').waitFor();
     await popup.locator('#ai').click();

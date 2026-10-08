@@ -74,6 +74,18 @@ run('clear', async () => {
   for (const key of Object.keys(PROFILE_FIELDS)) $(key).value = '';
   $('customFields').replaceChildren(); reset(); status('填表资料已删除。API key 可在 GPT 设置中单独删除。');
 });
+async function helpTarget() {
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (!tab?.id || !/^https?:/.test(tab.url || '')) throw new Error('请在普通 http/https 表单页面使用。');
+  tabId = tab.id;
+}
+run('hover', async () => {
+  // Request from the popup click, where Chrome can show its normal permission prompt.
+  if (keySettings.apiKey && !await chrome.permissions.request({ origins: [API_ORIGIN] })) throw new Error('未授权访问 OpenAI，无法使用 GPT 字段解释。');
+  await helpTarget(); await execute('hover', {});
+  status('悬停帮助已启用。关闭弹窗，将鼠标移到空白字段，再点击“解释与填写建议”。');
+});
+run('stopHover', async () => { await helpTarget(); await execute('stop-hover', {}); status('当前页面的悬停帮助已关闭。'); });
 run('scan', async () => {
   reset(); const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab?.id || !/^https?:/.test(tab.url || '')) throw new Error('请在普通 http/https 表单页面使用。');
