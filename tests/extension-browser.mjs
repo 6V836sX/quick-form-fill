@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 import { MODEL } from '../extension/model-config.mjs';
 
-test('unpacked extension: key lifecycle, custom facts, mocked GPT mapping and reviewed fill', async () => {
+test('unpacked extension: key lifecycle, custom facts, mocked GPT mapping and reviewed shadow-DOM fill', async () => {
   const base = fs.mkdtempSync(path.join(os.tmpdir(), 'quick-form-fill-test-'));
   const extension = path.join(base, 'extension');
   fs.cpSync(fileURLToPath(new URL('../extension', import.meta.url)), extension, { recursive: true });
@@ -20,7 +20,7 @@ test('unpacked extension: key lifecycle, custom facts, mocked GPT mapping and re
   const manifest = JSON.parse(fs.readFileSync(manifestPath));
   manifest.host_permissions = ['http://127.0.0.1/*', 'https://api.openai.com/*'];
   fs.writeFileSync(manifestPath, JSON.stringify(manifest));
-  const server = http.createServer((_req, res) => { res.setHeader('Content-Type', 'text/html; charset=utf-8'); res.end('<form><label>电子邮件<input name="email"></label><label>How should we address you?<input name="contact_person"></label><label>学校<input name="school"></label><label>Password<input type="password"></label><button>Submit</button></form>'); });
+  const server = http.createServer((_req, res) => { res.setHeader('Content-Type', 'text/html; charset=utf-8'); res.end(fs.readFileSync(new URL('./fixtures/shadow-form.html', import.meta.url))); });
   server.listen(0, '127.0.0.1'); await once(server, 'listening');
   const fixtureURL = `http://127.0.0.1:${server.address().port}/`;
   const id = crypto.createHash('sha256').update(fs.realpathSync(extension)).digest('hex').slice(0, 32).replace(/[0-9a-f]/g, c => String.fromCharCode(97 + parseInt(c, 16)));
@@ -40,6 +40,7 @@ test('unpacked extension: key lifecycle, custom facts, mocked GPT mapping and re
       await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ status: 'completed', model: MODEL, usage: { input_tokens: 100, output_tokens: 20 }, output: [{ type: 'message', content: [{ type: 'output_text', text: JSON.stringify({ mappings: [{ id: input.fields[0].id, key: 'fullName' }] }) }] }] }) });
     });
     const target = await context.newPage(); await target.goto(fixtureURL);
+    assert.equal(await target.evaluate(() => document.querySelectorAll('input').length), 0);
     await target.evaluate(() => { window.submitted = false; document.querySelector('form').addEventListener('submit', e => { e.preventDefault(); window.submitted = true; }); });
     const popup = await context.newPage();
     await popup.goto(`chrome-extension://${id}/popup.html`);

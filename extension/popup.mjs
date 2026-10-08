@@ -33,7 +33,7 @@ function render() {
     select.add(new Option('跳过', ''));
     for (const [key, names] of Object.entries(definitions)) if (profile[key]) select.add(new Option(`${names[0]}：${profile[key]}`, key));
     select.value = match?.key || ''; select.addEventListener('change', () => { check.checked = !!select.value; });
-    const note = document.createElement('small'); note.textContent = match?.source || '未匹配，可手动选择';
+    const note = document.createElement('small'); note.textContent = (match?.source || '未匹配，可手动选择') + (field.requiresSelection ? ' · 填入后请在网页选择候选项' : '');
     row.append(label, select, note); $('preview').append(row);
   }
 }
@@ -78,7 +78,13 @@ run('scan', async () => {
   reset(); const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   if (!tab?.id || !/^https?:/.test(tab.url || '')) throw new Error('请在普通 http/https 表单页面使用。');
   tabId = tab.id; scan = await execute('scan', {}); mappings = exactMatches(scan.fields, profile, definitions); render();
-  status(`找到 ${scan.fields.length} 个空白字段，匹配 ${mappings.length} 项。请核对下方预览。`);
+  if (!scan.fields.length) {
+    status(scan.diagnostics?.frames
+      ? '未找到可填的空白字段。页面包含嵌入表单，当前版本暂不支持 iframe；可尝试直接打开表单页面。'
+      : '未找到可填的空白字段。请等待页面加载后重新扫描；已有内容、隐藏及受保护字段会跳过。');
+  } else {
+    status(`找到 ${scan.fields.length} 个空白字段，匹配 ${mappings.length} 项。请核对下方预览。`);
+  }
 });
 run('ai', async () => {
   if (!keySettings.apiKey) { $('apiPanel').open = true; throw new Error('请先配置并保存 OpenAI API key。'); }
@@ -99,7 +105,9 @@ run('ai', async () => {
 run('fill', async () => {
   const selected = [...$('preview').querySelectorAll('select')].filter(select => select.value && [...$('preview').querySelectorAll('input')].some(input => input.dataset.field === select.dataset.field && input.checked));
   const result = await execute('fill', { token: scan.token, mappings: selected.map(select => ({ id: select.dataset.field, value: profile[select.value] })) });
-  reset(); status(`已填入 ${result.filter(item => item.filled).length} 项，跳过 ${result.filter(item => !item.filled).length} 项。请在网页核对后自行提交。`);
+  const selectionCount = result.filter(item => item.filled && item.requiresSelection).length;
+  reset(); status(`已填入 ${result.filter(item => item.filled).length} 项，跳过 ${result.filter(item => !item.filled).length} 项。请在网页核对后自行提交。` +
+    (selectionCount ? `其中 ${selectionCount} 项需在网页选择候选项（如城市）。` : ''));
 });
 await initializeStorage(chrome.storage);
 const saved = await chrome.storage.local.get(['profile', 'custom']); profile = saved.profile || {}; custom = saved.custom || []; definitions = definitionsFor(custom);

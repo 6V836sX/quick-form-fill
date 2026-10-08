@@ -1,0 +1,13 @@
+<!doctype html><meta charset="utf-8"><form id="application"><div id="fields"></div><button>Submit</button></form>
+<script>
+  // Synthetic web components: all native form controls live inside open roots.
+  // Labels deliberately reuse IDs, as many component libraries do.
+  for (const [name, label, type] of [['email', '电子邮件', 'email'], ['contact_person', 'How should we address you?', 'text'], ['school', '学校', 'text'], ['password', 'Password', 'password']]) {
+    const host = document.createElement('form-field');
+    const root = host.attachShadow({ mode: 'open' });
+    const labelElement = document.createElement('label'); labelElement.htmlFor = 'control'; labelElement.textContent = label;
+    const input = document.createElement('input'); input.id = 'control'; input.name = name; input.type = type;
+    root.append(labelElement, input);
+    document.getElementById('fields').append(host);
+  }
+</script>

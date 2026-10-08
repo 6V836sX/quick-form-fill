@@ -31,8 +31,8 @@
 - API key 默认存于 `chrome.storage.session`；勾选长期保存才写入本地存储，同样未加密。可以单独删除 key。存储限制为扩展可信上下文，网页与注入脚本无法读取。
 - 点击 GPT 后，**字段描述、名称、占位提示及你保存的资料名称**会发送给 OpenAI。描述本身可能包含网站显示的私人信息。不会发送保存的资料值、表单当前值、整页 HTML、页面 URL 或文件。
 - Key 仅作为认证头发送到固定的 `https://api.openai.com/v1/responses`，不注入网页、不写日志、不经过项目服务器。请求设置 `store: false`，但这不等于 OpenAI 零数据保留承诺。
-- 只填充当前主文档中可见、空白的原生文本输入框、textarea 和 select；跳过密码、验证码、支付/证件提示字段、复选框和上传控件。不覆盖、不自动提交。
-- 暂不支持 iframe、Shadow DOM、自定义下拉控件；动态页面和下一页需要重新扫描。
+- 扫描当前主文档及其开放 Shadow DOM（包括嵌套组件），只填充可见、空白的原生文本输入框、textarea 和 select；跳过密码、验证码、支付/证件提示字段、复选框和上传控件。不覆盖、不自动提交。
+- 暂不支持 iframe、封闭 Shadow DOM、自定义下拉选项选择；动态页面和下一页需要重新扫描。城市等自动补全输入框可以填入文本，但需要你在网页选择候选项才能完成验证。
 - 下拉框仅使用与你保存内容相同的选项文字或值，不猜测国家代码转换；已有非空默认值会保留。
 - 网站有自己的事件处理器，填写后请核对实际结果。关闭或离开网页后须重新扫描。
 
@@ -54,3 +54,7 @@ npm run build
 入口：[manifest](extension/manifest.json)、[弹窗](extension/popup.mjs)、[字段识别与填入](extension/page.mjs)、[OpenAI 请求](extension/openai.mjs)、[模型配置](extension/model-config.mjs)。不依赖原宿主项目、工作区环境变量或服务端。
 
 MIT 许可证，来源见 [NOTICE](NOTICE.md)。
+
+## 0.2.1 修复
+
+修复 SmartRecruiters 等使用开放 Shadow DOM 的页面扫描为 0 的问题；支持嵌套组件、组件内部标签和跨组件输入事件。原有资料和 key 配置方式不变。在扩展管理页点击重新加载，再刷新目标表单页面即可使用；会话 key 在扩展重载后需要重新填写。
